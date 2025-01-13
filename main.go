@@ -175,7 +175,7 @@ func flagEmail(userID, messageID string) error {
 }
 
 func monitorFolder(userID, folderID string) error {
-	url := fmt.Sprintf("%s/users/%s/mailFolders/%s/messages?$filter=(flag/flagStatus eq 'notFlagged')", GraphAPI, userID, folderID)
+	url := fmt.Sprintf(`%s/users/%s/mailFolders/%s/messages?$filter=flag/flagStatus eq 'complete'`, GraphAPI, userID, folderID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return err
@@ -187,7 +187,11 @@ func monitorFolder(userID, folderID string) error {
 		return err
 	}
 	defer resp.Body.Close()
-
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %v", err)
+	}
+	log.Printf("Response body: %s\n", string(respBody))
 	if resp.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(resp.Body)
 		return fmt.Errorf("failed to get messages: %s, %s", resp.Status, string(body))

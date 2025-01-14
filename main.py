@@ -1,6 +1,8 @@
 import requests
 import json
 import logging
+import schedule
+import time
 
 # Constants
 CLIENT_ID = "b8ebdc42-2414-425d-95e2-d70b9f94fb43"
@@ -118,19 +120,28 @@ def send_new_email(user_id, recipient, subject, body):
         raise Exception(f"Failed to send email: {response.status_code}, {response.text}")
     logging.info(f"Email sent successfully to {recipient}.")
 
-# Main function
+# Main function with schedule
 def main():
-    try:
-        get_access_token()
-        user_id = "finance@remotesupportnederland.nl"
-        parent_folder_name = "Inbox"
-        target_folder_name = "TestFolder"
-
-        folder_id = get_folder_id(user_id, parent_folder_name, target_folder_name)
-        monitor_folder(user_id, folder_id)
-        logging.info("Emails processed successfully.")
-    except Exception as e:
-        logging.error(f"Error: {e}")
+    user_id = "finance@remotesupportnederland.nl"
+    parent_folder_name = "Inbox"
+    target_folder_name = "TestFolder"
+    
+    def job():
+        try:
+            get_access_token()
+            folder_id = get_folder_id(user_id, parent_folder_name, target_folder_name)
+            monitor_folder(user_id, folder_id)
+            logging.info("Emails processed successfully.")
+        except Exception as e:
+            logging.error(f"Error: {e}")
+    
+    # Schedule the job to run every 5 minute
+    schedule.every(5).minutes.do(job)
+    
+    logging.info("Starting scheduled tasks...")
+    while True:
+        schedule.run_pending()
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()

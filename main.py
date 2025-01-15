@@ -77,7 +77,7 @@ def flag_email(user_id, message_id):
 
 # Monitor folder
 def monitor_folder(user_id, folder_id):
-    url = f"{GRAPH_API}/users/{user_id}/mailFolders/{folder_id}/messages?$filter=flag/flagStatus eq 'complete'"
+    url = f"{GRAPH_API}/users/{user_id}/mailFolders/{folder_id}/messages?$filter=flag/flagStatus eq 'notFlagged'"
     headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
     response = requests.get(url, headers=headers)
     if response.status_code != 200:
@@ -85,46 +85,37 @@ def monitor_folder(user_id, folder_id):
     messages = response.json().get("value", [])
     
     for message in messages:
-        # Compose and send a new email
-        subject = "Re: " + message["subject"]
-        body = f"Thank you for your email. Here's a reply:\n\n{message['body']['content']}"
-        recipient = message["sender"]["emailAddress"]["address"]
-
-        send_new_email(user_id, recipient, subject, body)
+        # Forward the email
+        forward_email(user_id, message["id"])
 
         # Flag the email
         flag_email(user_id, message["id"])
 
-# Send new email
-def send_new_email(user_id, recipient, subject, body):
-    url = f"{GRAPH_API}/users/{user_id}/sendMail"
+# Forward email
+def forward_email(user_id, message_id):
+    url = f"{GRAPH_API}/users/{user_id}/messages/{message_id}/forward"
     headers = {
         "Authorization": f"Bearer {ACCESS_TOKEN}",
         "Content-Type": "application/json"
     }
     data = {
-        "message": {
-            "subject": subject,
-            "body": {
-                "contentType": "Text",
-                "content": body
-            },
-            "toRecipients": [
-                {"emailAddress": {"address": recipient}}
-            ]
-        },
-        "saveToSentItems": True
+        "comment": "Forwarding this email as requested.",
+        "toRecipients": [
+            {"emailAddress": {"address": "remotesupportnederlandez31400.4170@to-zenvoices.com"}},
+            {"emailAddress": {"address": "5a75313s@inkoop.exactonline.nl"}}
+        ]
     }
     response = requests.post(url, headers=headers, json=data)
     if response.status_code != 202:
-        raise Exception(f"Failed to send email: {response.status_code}, {response.text}")
-    logging.info(f"Email sent successfully to {recipient}.")
+        raise Exception(f"Failed to forward email: {response.status_code}, {response.text}")
+    logging.info(f"Email with ID {message_id} forwarded successfully.")
+
 
 # Main function with schedule
 def main():
     user_id = "finance@remotesupportnederland.nl"
     parent_folder_name = "Inbox"
-    target_folder_name = "TestFolder"
+    target_folder_name = "Facturen betaald"
     
     def job():
         try:
@@ -134,9 +125,9 @@ def main():
             logging.info("Emails processed successfully.")
         except Exception as e:
             logging.error(f"Error: {e}")
-    
-    # Schedule the job to run every 5 minute
-    schedule.every(5).minutes.do(job)
+    job()
+    # Schedule the job to run every 20 seconds
+    schedule.every(20).seconds.do(job)
     
     logging.info("Starting scheduled tasks...")
     while True:
